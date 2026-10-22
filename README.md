@@ -36,58 +36,63 @@ The project is in the setup and design phase. No CPU modules are written yet.
 
 ## Architecture
 
-### Module hierarchy
+### How the CPU runs one instruction
 
-Each module will be its own SystemVerilog file in `rtl/`, with its own testbench in `tb/`.
-
-```mermaid
-flowchart TD
-    top["cpu_top<br/><i>wires everything together</i>"]
-    top --> pc["pc_reg<br/><i>program counter</i>"]
-    top --> imem["imem<br/><i>instruction memory</i>"]
-    top --> ctrl["control<br/><i>main control unit</i>"]
-    top --> rf["regfile<br/><i>32 x 32-bit registers</i>"]
-    top --> imm["imm_gen<br/><i>immediate generator</i>"]
-    top --> aluc["alu_control<br/><i>picks the ALU operation</i>"]
-    top --> alu["alu<br/><i>math and logic</i>"]
-    top --> br["branch_unit<br/><i>branch comparisons</i>"]
-    top --> dmem["dmem<br/><i>data memory</i>"]
-```
-
-### Datapath (one instruction per clock cycle)
+A single-cycle CPU does all five steps for one instruction in a single clock tick, then starts the next instruction.
 
 ```mermaid
 flowchart LR
-    PC[PC] --> IMEM[Instruction Memory]
-    IMEM --> CTRL[Control]
-    IMEM --> RF[Register File]
-    IMEM --> IMM[Imm Gen]
-    RF -- rs1 --> ALU
-    RF -- rs2 --> MUX{ALUSrc}
-    IMM --> MUX
-    MUX --> ALU[ALU]
-    ALU -- address --> DMEM[Data Memory]
-    RF -- rs2 --> DMEM
-    ALU --> WB{Write-back}
-    DMEM --> WB
-    WB -- rd --> RF
-    RF --> BR[Branch Unit]
-    BR --> NPC{Next PC}
-    NPC --> PC
+    F["<b>1. Fetch</b><br/>PC + Instruction Memory"]
+    D["<b>2. Decode</b><br/>Control + Registers<br/>+ Immediate Gen"]
+    E["<b>3. Execute</b><br/>ALU"]
+    M["<b>4. Memory</b><br/>Data Memory"]
+    W["<b>5. Write back</b><br/>save the result"]
+
+    F --> D --> E --> M --> W
+    W -. "result goes into a register" .-> D
+    E -. "next PC: PC + 4, or jump" .-> F
 ```
 
-| Module | Job |
-| --- | --- |
-| `pc_reg` | Holds the address of the current instruction; updates every clock edge |
-| `imem` | Read-only memory loaded from a `.hex` program file |
-| `control` | Reads the opcode and sets the control signals (register write, memory read/write, branch, ...) |
-| `regfile` | 32 registers with two read ports and one write port; `x0` is always zero |
-| `imm_gen` | Extracts and sign-extends the immediate for the I, S, B, U, and J formats |
-| `alu_control` | Turns `funct3`/`funct7` into the exact ALU operation |
-| `alu` | Add, subtract, AND, OR, XOR, shifts, and comparisons |
-| `branch_unit` | Decides whether `beq`, `bne`, `blt`, `bge`, `bltu`, `bgeu` are taken |
-| `dmem` | Data memory for loads and stores (byte, halfword, word) |
-| `cpu_top` | Connects all modules, plus the PC+4 adder, branch target adder, and muxes |
+| Step | What happens | Modules |
+| --- | --- | --- |
+| **1. Fetch** | Read the instruction stored at the address in the PC | `pc_reg`, `imem` |
+| **2. Decode** | Figure out what the instruction is and read its input registers | `control`, `regfile`, `imm_gen` |
+| **3. Execute** | Do the math, or compare two values for a branch | `alu`, `alu_control`, `branch_unit` |
+| **4. Memory** | Loads read from memory; stores write to it (other instructions skip this) | `dmem` |
+| **5. Write back** | Save the result into the destination register, then move the PC to the next instruction | `regfile`, `pc_reg` |
+
+**Example:** `add x3, x1, x2` (with `x1 = 5`, `x2 = 7`)
+
+1. **Fetch:** the PC is `0x00`, so read the instruction at address `0x00`.
+2. **Decode:** the control unit sees an `add`, and the register file reads `x1 = 5` and `x2 = 7`.
+3. **Execute:** the ALU computes `5 + 7 = 12`.
+4. **Memory:** skipped, because `add` doesn't use memory.
+5. **Write back:** store `12` in `x3` and set the PC to `0x04` for the next instruction.
+
+### Module hierarchy
+
+`cpu_top` connects everything. Each module below is its own file in `rtl/` with its own testbench in `tb/`.
+
+```mermaid
+flowchart TD
+    TOP["<b>cpu_top</b><br/>connects all modules"]
+
+    TOP --> STATE["<b>Storage</b><br/>holds values between cycles"]
+    TOP --> COMPUTE["<b>Compute</b><br/>does the work"]
+    TOP --> CONTROL["<b>Control</b><br/>tells everything what to do"]
+
+    STATE --> pc_reg["pc_reg<br/>current instruction address"]
+    STATE --> regfile["regfile<br/>32 registers"]
+    STATE --> imem["imem<br/>program instructions"]
+    STATE --> dmem["dmem<br/>program data"]
+
+    COMPUTE --> alu["alu<br/>math and logic"]
+    COMPUTE --> imm_gen["imm_gen<br/>constants from the instruction"]
+    COMPUTE --> branch_unit["branch_unit<br/>branch or not?"]
+
+    CONTROL --> control["control<br/>reads the opcode"]
+    CONTROL --> alu_control["alu_control<br/>picks the ALU operation"]
+```
 
 ### Planned repo layout
 
