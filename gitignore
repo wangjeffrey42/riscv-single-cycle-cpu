@@ -1,0 +1,27 @@
+# Verilator build output
+obj_dir/
+build/
+
+# Waveforms
+*.vcd
+*.fst
+*.ghw
+
+# Compiled objects and binaries
+*.o
+*.a
+*.so
+*.elf
+*.out
+
+# Python (PyRTL / scripts)
+__pycache__/
+*.pyc
+.venv/
+
+# Editor and OS files
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
