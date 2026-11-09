@@ -16,7 +16,9 @@
 #include "verilated.h"
 #include "verilated_vcd_c.h"
 
-static VerilatedContext ctx;
+// Created in main(), not as a global object: globals in different files are
+// constructed in no fixed order, and Verilator needs its own globals first.
+static VerilatedContext* ctx;
 static Valu* dut;
 static VerilatedVcdC* wave;
 static int passed = 0, total = 0;
@@ -27,8 +29,8 @@ static void check(int op, uint32_t a, uint32_t b) {
   dut->b = b;
   dut->alu_ctrl = op;
   dut->eval();
-  wave->dump(ctx.time());
-  ctx.timeInc(1);
+  wave->dump(ctx->time());
+  ctx->timeInc(1);
 
   uint32_t expected = alu_model(op, a, b);
   bool expected_zero = (expected == 0);
@@ -42,9 +44,10 @@ static void check(int op, uint32_t a, uint32_t b) {
 }
 
 int main(int argc, char** argv) {
-  ctx.commandArgs(argc, argv);
-  ctx.traceEverOn(true);
-  dut = new Valu{&ctx};
+  ctx = new VerilatedContext;
+  ctx->commandArgs(argc, argv);
+  ctx->traceEverOn(true);
+  dut = new Valu{ctx};
   wave = new VerilatedVcdC;
   dut->trace(wave, 99);
   wave->open("build/alu.vcd");
@@ -82,7 +85,13 @@ int main(int argc, char** argv) {
   if (const char* s = getenv("SEED")) seed = strtoul(s, nullptr, 0);
   std::mt19937 rng(seed);
   for (int i = 0; i < 10000; i++) {
-    check(rng() % ALU_NUM_OPS, rng(), rng());
+    // One rng() call per line: C++ doesn't fix the order function arguments
+    // are evaluated in, so check(rng(), rng(), rng()) would give different
+    // tests for the same seed on different compilers.
+    int op = rng() % ALU_NUM_OPS;
+    uint32_t a = rng();
+    uint32_t b = rng();
+    check(op, a, b);
   }
 
   wave->close();

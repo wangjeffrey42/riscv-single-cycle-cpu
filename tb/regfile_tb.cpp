@@ -16,7 +16,9 @@
 #include "verilated.h"
 #include "verilated_vcd_c.h"
 
-static VerilatedContext ctx;
+// Created in main(), not as a global object: globals in different files are
+// constructed in no fixed order, and Verilator needs its own globals first.
+static VerilatedContext* ctx;
 static Vregfile* dut;
 static VerilatedVcdC* wave;
 static int passed = 0, total = 0;
@@ -27,12 +29,12 @@ static uint32_t model[32] = {0};
 static void tick() {
   dut->clk = 0;
   dut->eval();
-  wave->dump(ctx.time());
-  ctx.timeInc(5);
+  wave->dump(ctx->time());
+  ctx->timeInc(5);
   dut->clk = 1;
   dut->eval();
-  wave->dump(ctx.time());
-  ctx.timeInc(5);
+  wave->dump(ctx->time());
+  ctx->timeInc(5);
 }
 
 // Write one register through the write port (takes one clock cycle).
@@ -60,9 +62,10 @@ static void check_read(uint32_t rs1, uint32_t rs2, const char* what) {
 }
 
 int main(int argc, char** argv) {
-  ctx.commandArgs(argc, argv);
-  ctx.traceEverOn(true);
-  dut = new Vregfile{&ctx};
+  ctx = new VerilatedContext;
+  ctx->commandArgs(argc, argv);
+  ctx->traceEverOn(true);
+  dut = new Vregfile{ctx};
   wave = new VerilatedVcdC;
   dut->trace(wave, 99);
   wave->open("build/regfile.vcd");
@@ -99,8 +102,15 @@ int main(int argc, char** argv) {
   if (const char* s = getenv("SEED")) seed = strtoul(s, nullptr, 0);
   std::mt19937 rng(seed);
   for (int i = 0; i < 5000; i++) {
-    if (rng() % 2) write_reg(rng() % 32, rng());
-    check_read(rng() % 32, rng() % 32, "random");
+    // One rng() call per line so the same seed gives the same test everywhere.
+    if (rng() % 2) {
+      uint32_t rd = rng() % 32;
+      uint32_t value = rng();
+      write_reg(rd, value);
+    }
+    uint32_t rs1 = rng() % 32;
+    uint32_t rs2 = rng() % 32;
+    check_read(rs1, rs2, "random");
   }
 
   wave->close();

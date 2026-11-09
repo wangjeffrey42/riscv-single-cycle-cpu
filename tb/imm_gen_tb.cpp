@@ -14,7 +14,9 @@
 #include "verilated.h"
 #include "verilated_vcd_c.h"
 
-static VerilatedContext ctx;
+// Created in main(), not as a global object: globals in different files are
+// constructed in no fixed order, and Verilator needs its own globals first.
+static VerilatedContext* ctx;
 static Vimm_gen* dut;
 static VerilatedVcdC* wave;
 static int passed = 0, total = 0;
@@ -30,8 +32,8 @@ static uint32_t imm_model_i(uint32_t instr) {
 static void check(uint32_t instr, uint32_t expected, const char* what) {
   dut->instr = instr;
   dut->eval();
-  wave->dump(ctx.time());
-  ctx.timeInc(1);
+  wave->dump(ctx->time());
+  ctx->timeInc(1);
   total++;
   if (dut->imm == expected) {
     passed++;
@@ -42,9 +44,10 @@ static void check(uint32_t instr, uint32_t expected, const char* what) {
 }
 
 int main(int argc, char** argv) {
-  ctx.commandArgs(argc, argv);
-  ctx.traceEverOn(true);
-  dut = new Vimm_gen{&ctx};
+  ctx = new VerilatedContext;
+  ctx->commandArgs(argc, argv);
+  ctx->traceEverOn(true);
+  dut = new Vimm_gen{ctx};
   wave = new VerilatedVcdC;
   dut->trace(wave, 99);
   wave->open("build/imm_gen.vcd");
@@ -68,7 +71,10 @@ int main(int argc, char** argv) {
   if (const char* s = getenv("SEED")) seed = strtoul(s, nullptr, 0);
   std::mt19937 rng(seed);
   for (int i = 0; i < 1000; i++) {
-    uint32_t instr = (rng() & ~0x7Fu) | I_TYPE_OPCODES[rng() % 3];
+    // One rng() call per line so the same seed gives the same test everywhere.
+    uint32_t upper = rng() & ~0x7Fu;
+    uint32_t opcode = I_TYPE_OPCODES[rng() % 3];
+    uint32_t instr = upper | opcode;
     check(instr, imm_model_i(instr), "random I-type");
   }
 

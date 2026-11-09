@@ -12,7 +12,9 @@
 #include "verilated.h"
 #include "verilated_vcd_c.h"
 
-static VerilatedContext ctx;
+// Created in main(), not as a global object: globals in different files are
+// constructed in no fixed order, and Verilator needs its own globals first.
+static VerilatedContext* ctx;
 static Vpc_reg* dut;
 static VerilatedVcdC* wave;
 static int passed = 0, total = 0;
@@ -22,12 +24,12 @@ static int passed = 0, total = 0;
 static void tick() {
   dut->clk = 0;
   dut->eval();
-  wave->dump(ctx.time());
-  ctx.timeInc(5);
+  wave->dump(ctx->time());
+  ctx->timeInc(5);
   dut->clk = 1;
   dut->eval();
-  wave->dump(ctx.time());
-  ctx.timeInc(5);
+  wave->dump(ctx->time());
+  ctx->timeInc(5);
 }
 
 static void expect_pc(uint32_t expected, const char* what) {
@@ -40,9 +42,10 @@ static void expect_pc(uint32_t expected, const char* what) {
 }
 
 int main(int argc, char** argv) {
-  ctx.commandArgs(argc, argv);
-  ctx.traceEverOn(true);
-  dut = new Vpc_reg{&ctx};
+  ctx = new VerilatedContext;
+  ctx->commandArgs(argc, argv);
+  ctx->traceEverOn(true);
+  dut = new Vpc_reg{ctx};
   wave = new VerilatedVcdC;
   dut->trace(wave, 99);
   wave->open("build/pc_reg.vcd");
