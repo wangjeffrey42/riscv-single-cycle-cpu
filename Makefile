@@ -40,11 +40,13 @@ VIEWER := $(shell command -v surfer || command -v gtkwave)
 
 # Build one module's testbench. Verilator's output is saved to build.log and
 # only printed if the build fails, so `make test` stays readable.
+# The .cpp path is absolute because older Verilators (e.g. Ubuntu's) compile
+# it from inside build/<name>/, where a relative path wouldn't resolve.
 $(BUILD)/%/sim: $(PKGS) rtl/%.sv tb/%_tb.cpp $(TB_HEADERS)
 	@mkdir -p $(@D)
 	@echo "  BUILD  $*"
 	@$(VERILATOR) $(VFLAGS) --top-module $* -Mdir $(@D) -o sim \
-		$(PKGS) rtl/$*.sv tb/$*_tb.cpp > $(@D)/build.log 2>&1 \
+		$(PKGS) rtl/$*.sv $(CURDIR)/tb/$*_tb.cpp > $(@D)/build.log 2>&1 \
 		|| (cat $(@D)/build.log; exit 1)
 
 # Running a testbench writes its waveform.
@@ -65,7 +67,7 @@ $(BUILD)/alu_repl/sim: $(PKGS) rtl/alu.sv tb/alu_repl.cpp $(TB_HEADERS)
 	@mkdir -p $(@D)
 	@echo "  BUILD  alu_repl"
 	@$(VERILATOR) $(VFLAGS) --top-module alu -Mdir $(@D) -o sim \
-		$(PKGS) rtl/alu.sv tb/alu_repl.cpp > $(@D)/build.log 2>&1 \
+		$(PKGS) rtl/alu.sv $(CURDIR)/tb/alu_repl.cpp > $(@D)/build.log 2>&1 \
 		|| (cat $(@D)/build.log; exit 1)
 
 run: $(BUILD)/alu_repl/sim
