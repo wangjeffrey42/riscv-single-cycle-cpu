@@ -29,12 +29,64 @@ The project is a public code repository with no accounts or user-contributed con
 
 ## Current State (MVP)
 
-The project is in the setup and design phase. No CPU modules are written yet.
+Milestone 1 is done: four building blocks of the CPU are written and tested on their own. They are not connected into a working CPU yet.
 
 - [x] Repository set up with README, MIT license, and `.gitignore`
 - [x] CPU architecture planned: module hierarchy and datapath (below)
-- [ ] Toolchain installed and verified (Verilator, RISC-V GNU toolchain, Surfer/GTKWave)
-- [ ] First module (ALU) written and tested
+- [x] Simulation tools installed and verified (Verilator 5, Surfer)
+- [x] `make test`, `make run`, `make wave`, `make lint` working
+- [x] ALU, program counter, register file, and immediate generator written and tested
+- [x] Interactive ALU calculator (`make run`)
+- [x] CI on GitHub Actions runs lint and all tests on every push
+- [ ] RISC-V GNU toolchain installed (needed once the CPU runs programs)
+- [ ] Control unit, memories, and full datapath
+
+| Module | Status | Tests |
+| --- | --- | --- |
+| `alu` (+ `alu_pkg`) | Built and tested | 30 edge cases + 10,000 random, against a C++ model |
+| `pc_reg` | Built and tested | Counts by 4 for 20 cycles, reset mid-count |
+| `regfile` | Built and tested | Every register, x0 stays 0, write enable, 5,000 random cycles |
+| `imm_gen` | Built and tested (I-type only) | Real instruction encodings, ±2048 limits, 1,000 random |
+| `control`, `alu_control`, `branch_unit` | Not started | |
+| `imem`, `dmem`, `cpu_top` | Not started | |
+
+The program counter counting up by 4 on each rising clock edge:
+
+![PC register waveform](docs/images/pc_waveform.png)
+
+## Build and Run
+
+**Install** (macOS with Homebrew, or Linux/WSL with apt):
+
+```bash
+brew install verilator surfer          # macOS
+sudo apt-get install verilator gtkwave # Linux / WSL
+```
+
+**Run every test:**
+
+```bash
+make test
+```
+
+Each module prints a line like `ALU: 10030/10030 passed`. The command exits with an error if anything fails. Random tests use a fixed seed; try another with `SEED=42 make test`.
+
+**Try the ALU yourself:**
+
+```bash
+make run
+alu> sub 5 7
+alu> sltu 0xFFFFFFFF 1
+alu> quit
+```
+
+**Look at a waveform** (`alu`, `pc_reg`, `regfile`, or `imm_gen`):
+
+```bash
+make wave MODULE=pc_reg
+```
+
+**Other targets:** `make lint` checks all hardware code with Verilator's warnings on; `make clean` deletes `build/`.
 
 ## Architecture
 

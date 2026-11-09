@@ -6,21 +6,27 @@
 
 ## What the demo shows
 
-- *Fill in: e.g. "Running the ALU test suite with `make test`, all operations passing"*
-- *Fill in: e.g. "Opening the waveform to show an add and a subtract happening"*
+- `make test` building and running the testbenches for the ALU, program counter, register file, and immediate generator, all passing
+- `make run`: typing ALU operations like `sub 5 7` and `sltu 0xFFFFFFFF 1` and seeing the hardware's answer
+- `make wave MODULE=pc_reg`: the program counter stepping 0, 4, 8, ... on each rising clock edge
+- The CI badge on GitHub, showing the same tests run automatically on every push
 
 ## How to run it yourself
 
+Install Verilator 5 and a waveform viewer first (see the README's "Build and Run" section).
+
 ```bash
-git clone <repo-url>
-cd <repo-name>
-make test      # build and run the tests
-make wave      # open the waveform (if set up)
+git clone https://github.com/wangjeffrey42/riscv-single-cycle-cpu.git
+cd riscv-single-cycle-cpu
+make test                 # build and run every testbench
+make run                  # interactive ALU (type 'help', 'quit' to exit)
+make wave MODULE=pc_reg   # open the program counter's waveform
+make lint                 # check the hardware code for warnings
 ```
 
 ## Planned for the next iteration
 
-- Register file, immediate generator, and program counter, each with tests
-- Control unit and the full single-cycle datapath
+- Control unit and ALU control
+- Instruction and data memories, and the full single-cycle datapath (`cpu_top`)
 - First programs running end to end (arithmetic instructions)
 - Goal by end of quarter: all 37 RV32I instructions passing official tests
