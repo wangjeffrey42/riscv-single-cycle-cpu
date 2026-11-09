@@ -1,5 +1,7 @@
 # riscv-single-cycle-cpu
 
+[![CI](https://github.com/wangjeffrey42/riscv-single-cycle-cpu/actions/workflows/ci.yml/badge.svg)](https://github.com/wangjeffrey42/riscv-single-cycle-cpu/actions/workflows/ci.yml)
+
 **Software product:** a single-cycle 32-bit RISC-V (RV32I) processor that runs real RISC-V programs in simulation.
 **Tech stack:** SystemVerilog, Verilator, C++ testbenches, Make, Surfer/GTKWave, RISC-V GNU toolchain.
 
