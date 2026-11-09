@@ -11,7 +11,7 @@
 #   tb/<name>_tb.cpp     its C++ testbench
 #   rtl/*_pkg.sv         shared packages (compiled before every module)
 #   build/<name>/sim     the compiled testbench
-#   build/<name>.fst     the waveform the testbench writes
+#   build/<name>.vcd     the waveform the testbench writes
 
 BUILD     := build
 VERILATOR := verilator
@@ -29,9 +29,9 @@ PKGS := $(wildcard rtl/*_pkg.sv)
 TB_HEADERS := $(wildcard tb/*.h)
 
 # --cc --exe --build : turn the SystemVerilog into C++, link it with our testbench, compile it
-# --trace-fst        : allow the testbench to write FST waveforms
+# --trace            : allow the testbench to write VCD waveforms
 # -Wall              : turn on every lint warning (warnings stop the build)
-VFLAGS := --cc --exe --build -j 0 -Wall --trace-fst -CFLAGS -I$(CURDIR)/tb
+VFLAGS := --cc --exe --build -j 0 -Wall --trace -CFLAGS -I$(CURDIR)/tb
 
 # Waveform viewer: prefer Surfer, fall back to GTKWave.
 VIEWER := $(shell command -v surfer || command -v gtkwave)
@@ -48,7 +48,7 @@ $(BUILD)/%/sim: $(PKGS) rtl/%.sv tb/%_tb.cpp $(TB_HEADERS)
 		|| (cat $(@D)/build.log; exit 1)
 
 # Running a testbench writes its waveform.
-$(BUILD)/%.fst: $(BUILD)/%/sim
+$(BUILD)/%.vcd: $(BUILD)/%/sim
 	@./$< > /dev/null
 
 test: $(MODULES:%=$(BUILD)/%/sim)
@@ -76,8 +76,8 @@ wave:
 		echo "Usage: make wave MODULE=<name>   (one of: $(MODULES))"; exit 1; fi
 	@if [ -z "$(VIEWER)" ]; then \
 		echo "No waveform viewer found. Install surfer or gtkwave."; exit 1; fi
-	@$(MAKE) --no-print-directory $(BUILD)/$(MODULE).fst
-	$(VIEWER) $(BUILD)/$(MODULE).fst
+	@$(MAKE) --no-print-directory $(BUILD)/$(MODULE).vcd
+	$(VIEWER) $(BUILD)/$(MODULE).vcd
 
 lint:
 	@for m in $(RTL_MODULES); do \
